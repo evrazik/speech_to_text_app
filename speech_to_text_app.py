@@ -58,38 +58,66 @@ class SpeechToTextApp:
         self.process_ui_queue()
         
     def setup_bindings(self):
-        # Настройка горячих клавиш
+        # Основные горячие клавиши
         self.root.bind('<F7>', lambda e: self.start_recording())
         self.root.bind('<F9>', lambda e: self.stop_recording())
-        self.root.bind('<Control-c>', self.copy_selected_text)
-        self.root.bind('<Control-a>', self.select_all_text)
-        self.root.bind('<Key>', self.global_key_handler)
+        
+        # УНИВЕРСАЛЬНАЯ обработка Ctrl+C и Ctrl+A для всех раскладок
+        self.root.bind('<Key>', self.universal_key_handler, add=True)
     
-    def global_key_handler(self, event):
-        pass
+    def universal_key_handler(self, event):
+        """Универсальная обработка клавиш для всех раскладок"""
+        # Проверяем, нажат ли Ctrl
+        if event.state & 0x4:  # Ctrl нажат
+            # Получаем код клавиши
+            keycode = event.keycode
+            
+            # Коды для C/c в разных раскладках
+            c_keycodes = [67, 99, 1089, 1057]  # C, c, с(рус), С(рус)
+            # Коды для A/a в разных раскладках  
+            a_keycodes = [65, 97, 1092, 1060, 1040, 1072]  # A, a, ф(рус), Ф(рус), А(рус), а(рус)
+            
+            if keycode in c_keycodes:
+                self.copy_selected_text_universal()
+                return "break"
+            elif keycode in a_keycodes:
+                self.select_all_text_universal()
+                return "break"
     
-    def copy_selected_text(self, event=None):
-        # Копирование выделенного текста
+    def copy_selected_text_universal(self):
+        """Универсальный метод копирования для всех раскладок"""
         try:
             focused_widget = self.root.focus_get()
-            if hasattr(focused_widget, 'selection_get'):
-                selected_text = focused_widget.selection_get()
-                self.root.clipboard_clear()
-                self.root.clipboard_append(selected_text)
-        except tk.TclError:
-            pass
+            if focused_widget and hasattr(focused_widget, 'tag_ranges'):
+                # Проверяем, есть ли выделение
+                if focused_widget.tag_ranges(tk.SEL):
+                    selected_text = focused_widget.get(tk.SEL_FIRST, tk.SEL_LAST)
+                    self.root.clipboard_clear()
+                    self.root.clipboard_append(selected_text)
+        except Exception as e:
+            print(f"Ошибка копирования: {e}")
     
-    def select_all_text(self, event=None):
-        # Выделение всего текста
+    def select_all_text_universal(self):
+        """Универсальный метод выделения для всех раскладок"""
         try:
             focused_widget = self.root.focus_get()
-            if hasattr(focused_widget, 'tag_add'):
+            if focused_widget and hasattr(focused_widget, 'tag_add'):
                 focused_widget.tag_add(tk.SEL, "1.0", tk.END)
                 focused_widget.mark_set(tk.INSERT, "1.0")
                 focused_widget.see(tk.INSERT)
-                return "break"
-        except tk.TclError:
-            pass
+                focused_widget.focus_set()
+        except Exception as e:
+            print(f"Ошибка выделения: {e}")
+    
+    def copy_selected_text(self, event=None):
+        """Совместимый метод копирования"""
+        self.copy_selected_text_universal()
+        return "break"
+    
+    def select_all_text(self, event=None):
+        """Совместимый метод выделения"""
+        self.select_all_text_universal()
+        return "break"
     
     def init_vosk(self):
         # Инициализация Vosk библиотеки
@@ -269,10 +297,27 @@ class SpeechToTextApp:
             finally:
                 context_menu.grab_release()
         
-        text_widget.bind("<Button-3>", show_context_menu)
-        text_widget.bind("<Control-c>", lambda e: self.copy_text_from_widget(text_widget))
-        text_widget.bind("<Control-a>", lambda e: self.select_all_from_widget(text_widget))
+        text_widget.bind("<Button-3>", show_context_menu) # ПКМ
+        # stta-003 добавим костыльные обработки для разных раскладок
+        text_widget.bind("<Control-c>", lambda e: [self.copy_text_from_widget(text_widget), "break"][1])
+        text_widget.bind("<Control-C>", lambda e: [self.copy_text_from_widget(text_widget), "break"][1])
+
+        text_widget.bind("<Control-a>", lambda e: [self.select_all_from_widget(text_widget), "break"][1])
+        text_widget.bind("<Control-A>", lambda e: [self.select_all_from_widget(text_widget), "break"][1])
     
+        # Альтернативная обработка через KeyPress
+        def key_press_handler(event):
+            # Проверяем комбинации клавиш
+            if event.state & 0x4:  # Ctrl нажат
+                if event.keysym.lower() in ['c', 'с']:  # 'c' в латинской и кириллической раскладке
+                    self.copy_text_from_widget(text_widget)
+                    return "break"
+                elif event.keysym.lower() in ['a', 'ф']:  # 'a' в латинской и кириллической раскладке
+                    self.select_all_from_widget(text_widget)
+                    return "break"
+        
+        text_widget.bind("<KeyPress>", key_press_handler)
+
     def copy_text_from_widget(self, widget):
         # Копирование выделенного текста из виджета
         try:
