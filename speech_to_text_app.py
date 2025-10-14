@@ -195,12 +195,12 @@ class SpeechToTextApp:
                                   font=("Arial", 10, "bold"))
         self.btn_model.pack(side=tk.LEFT, padx=5)
         
-        # Кнопка диагностики
-        self.btn_diagnose = tk.Button(frame_top, text="🔍 Диагностика", 
+        # Кнопка диагностики (пока не нужна, возможно понадобится в дальнейшем)
+        """self.btn_diagnose = tk.Button(frame_top, text="🔍 Диагностика", 
                                      command=self.run_diagnostics, 
                                      bg="purple", fg="white", width=15,
                                      font=("Arial", 10, "bold"))
-        self.btn_diagnose.pack(side=tk.LEFT, padx=5)
+        self.btn_diagnose.pack(side=tk.LEFT, padx=5)"""
         
         # Текстовое поле для вывода результата
         text_frame = tk.Frame(self.root)
@@ -333,7 +333,8 @@ class SpeechToTextApp:
         self.log_area.update_idletasks()
         print(log_entry.strip())
     
-    def run_diagnostics(self):
+    # Отключаем диагностику в рамках stta-001
+    """def run_diagnostics(self):
         # Запуск диагностики системы с правильной кодировкой
         def diagnostics_worker():
             self.queue_ui_message("log", "", "=== Запуск диагностики ===")
@@ -362,7 +363,7 @@ class SpeechToTextApp:
                 self.queue_ui_message("log", "", f"❌ Ошибка диагностики: {e}")
         
         # Запускаем в пуле потоков
-        self.executor.submit(diagnostics_worker)
+        self.executor.submit(diagnostics_worker)"""
     
     def select_model(self):
         # Выбор модели через диалог с прогрессбаром
