@@ -58,7 +58,7 @@ class SpeechToTextApp:
         self.process_ui_queue()
         
     def setup_bindings(self):
-        """Настройка горячих клавиш"""
+        # Настройка горячих клавиш
         self.root.bind('<F7>', lambda e: self.start_recording())
         self.root.bind('<F9>', lambda e: self.stop_recording())
         self.root.bind('<Control-c>', self.copy_selected_text)
@@ -69,7 +69,7 @@ class SpeechToTextApp:
         pass
     
     def copy_selected_text(self, event=None):
-        """Копирование выделенного текста"""
+        # Копирование выделенного текста
         try:
             focused_widget = self.root.focus_get()
             if hasattr(focused_widget, 'selection_get'):
@@ -80,7 +80,7 @@ class SpeechToTextApp:
             pass
     
     def select_all_text(self, event=None):
-        """Выделение всего текста"""
+        # Выделение всего текста
         try:
             focused_widget = self.root.focus_get()
             if hasattr(focused_widget, 'tag_add'):
@@ -92,7 +92,7 @@ class SpeechToTextApp:
             pass
     
     def init_vosk(self):
-        """Инициализация Vosk библиотеки"""
+        # Инициализация Vosk библиотеки
         try:
             from vosk import Model, KaldiRecognizer
             self.Model = Model
@@ -109,7 +109,7 @@ class SpeechToTextApp:
             return False
     
     def validate_model_path(self, path):
-        """Проверка правильности пути к модели"""
+        # Проверка правильности пути к модели
         if not path or not os.path.exists(path):
             return False, "Путь не существует"
         
@@ -135,7 +135,7 @@ class SpeechToTextApp:
             return False, f"Отсутствуют: {', '.join(missing)}"
     
     def fix_encoding(self, text):
-        """Исправление проблем с кодировкой"""
+        # Исправление проблем с кодировкой
         if isinstance(text, bytes):
             for encoding in ['utf-8', 'cp1251', 'cp866', 'latin1']:
                 try:
@@ -256,7 +256,7 @@ class SpeechToTextApp:
                 font=("Arial", 8), fg="blue").pack()
     
     def setup_text_context_menu(self, text_widget):
-        """Настройка контекстного меню для текстовых виджетов"""
+        # Настройка контекстного меню для текстовых виджетов
         context_menu = tk.Menu(text_widget, tearoff=0)
         context_menu.add_command(label="Копировать", command=lambda: self.copy_text_from_widget(text_widget))
         context_menu.add_command(label="Выделить всё", command=lambda: self.select_all_from_widget(text_widget))
@@ -274,7 +274,7 @@ class SpeechToTextApp:
         text_widget.bind("<Control-a>", lambda e: self.select_all_from_widget(text_widget))
     
     def copy_text_from_widget(self, widget):
-        """Копирование выделенного текста из виджета"""
+        # Копирование выделенного текста из виджета
         try:
             selected_text = widget.selection_get()
             self.root.clipboard_clear()
@@ -283,18 +283,18 @@ class SpeechToTextApp:
             pass
     
     def select_all_from_widget(self, widget):
-        """Выделение всего текста в виджете"""
+        # Выделение всего текста в виджете
         widget.tag_add(tk.SEL, "1.0", tk.END)
         widget.mark_set(tk.INSERT, "1.0")
         widget.see(tk.INSERT)
         widget.focus_set()
     
     def queue_ui_message(self, msg_type, title="", message="", **kwargs):
-        """Постановка сообщения в очередь для обработки в UI потоке"""
+        # Постановка сообщения в очередь для обработки в UI потоке
         self.ui_queue.put((msg_type, title, message, kwargs))
     
     def process_ui_queue(self):
-        """Обработка очереди UI сообщений"""
+        # Обработка очереди UI сообщений
         try:
             while True:
                 msg_type, title, message, kwargs = self.ui_queue.get_nowait()
@@ -306,7 +306,7 @@ class SpeechToTextApp:
             self.root.after(100, self.process_ui_queue)
     
     def handle_ui_message(self, msg_type, title, message, **kwargs):
-        """Обработка UI сообщений"""
+        # Обработка UI сообщений
         if msg_type == "log":
             self.log_message(message)
         elif msg_type == "status":
@@ -324,7 +324,7 @@ class SpeechToTextApp:
             self.btn_stop.config(state=kwargs.get('stop', tk.NORMAL))
     
     def log_message(self, message):
-        """Добавление сообщения в лог"""
+        # Добавление сообщения в лог
         import datetime
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         log_entry = f"[{timestamp}] {message}\n"
@@ -334,7 +334,7 @@ class SpeechToTextApp:
         print(log_entry.strip())
     
     def run_diagnostics(self):
-        """Запуск диагностики системы с правильной кодировкой"""
+        # Запуск диагностики системы с правильной кодировкой
         def diagnostics_worker():
             self.queue_ui_message("log", "", "=== Запуск диагностики ===")
             
@@ -365,7 +365,7 @@ class SpeechToTextApp:
         self.executor.submit(diagnostics_worker)
     
     def select_model(self):
-        """Выбор модели через диалог с прогрессбаром"""
+        # Выбор модели через диалог с прогрессбаром
         if not self.Model or not self.KaldiRecognizer:
             self.queue_ui_message("error", "Ошибка", "Библиотека Vosk не загружена!\nУстановите: pip install vosk")
             return
@@ -387,7 +387,7 @@ class SpeechToTextApp:
                 self.queue_ui_message("status", "", "❌ Некорректная модель", fg="red")
     
     def _show_loading_and_load_model(self):
-        """Показ окна загрузки и запуск загрузки модели"""
+        # Показ окна загрузки и запуск загрузки модели
         loading_window = tk.Toplevel(self.root)
         loading_window.title("Загрузка модели")
         loading_window.geometry("400x150")
@@ -413,7 +413,7 @@ class SpeechToTextApp:
         self.executor.submit(self._load_model_worker, loading_window)
     
     def _load_model_worker(self, loading_window):
-        """Рабочая функция загрузки модели"""
+        # Рабочая функция загрузки модели
         try:
             self.queue_ui_message("log", "", "Начало загрузки модели...")
             self.model = self.Model(self.model_path)
@@ -429,7 +429,7 @@ class SpeechToTextApp:
             self.root.after(0, lambda: self._on_model_load_error(loading_window, error_msg))
     
     def _on_model_loaded(self, loading_window):
-        """Обработка успешной загрузки модели"""
+        # Обработка успешной загрузки модели
         try:
             loading_window.destroy()
             self.queue_ui_message("status", "", "✅ Модель загружена", fg="green")
@@ -440,7 +440,7 @@ class SpeechToTextApp:
             self.queue_ui_message("log", "", f"❌ Ошибка при завершении загрузки: {e}")
     
     def _on_model_load_error(self, loading_window, error_msg):
-        """Обработка ошибки загрузки модели"""
+        # Обработка ошибки загрузки модели
         try:
             loading_window.destroy()
             self.queue_ui_message("log", "", f"❌ Ошибка загрузки модели: {error_msg}")
@@ -451,7 +451,7 @@ class SpeechToTextApp:
             self.queue_ui_message("log", "", f"❌ Ошибка обработки ошибки: {e}")
     
     def start_recording(self):
-        """Начало записи в отдельном потоке"""
+        # Начало записи в отдельном потоке
         if not self.model:
             self.queue_ui_message("error", "Ошибка", "Модель не загружена!\nСначала выберите модель")
             return
@@ -475,7 +475,7 @@ class SpeechToTextApp:
             self.processing_thread.start()
     
     def stop_recording(self):
-        """Остановка записи"""
+        # Остановка записи
         if self.is_recording:
             self.is_recording = False
             self.stop_recording_flag.set()
@@ -486,7 +486,7 @@ class SpeechToTextApp:
             self.queue_ui_message("enable_buttons", "", "", start=tk.NORMAL, stop=tk.DISABLED)
     
     def _record_audio_worker(self):
-        """Рабочий поток для записи аудио"""
+        # Рабочий поток для записи аудио
         try:
             self.pyaudio_instance = pyaudio.PyAudio()
             self.queue_ui_message("log", "", f"Создание распознавателя с частотой {self.rate}Hz")
@@ -541,7 +541,7 @@ class SpeechToTextApp:
             self.queue_ui_message("log", "", "Аудиопоток закрыт")
     
     def _process_audio_worker(self):
-        """Рабочий поток для обработки аудио данных"""
+        # Рабочий поток для обработки аудио данных
         while not self.stop_processing_flag.is_set():
             try:
                 # Получаем аудиоданные из очереди с таймаутом
@@ -610,12 +610,12 @@ class SpeechToTextApp:
         return datetime.datetime.now().strftime("%H:%M:%S")
     
     def cleanup(self):
-        """Очистка ресурсов при закрытии приложения"""
+        # Очистка ресурсов при закрытии приложения
         self.stop_recording()
         self.executor.shutdown(wait=False)
     
     def __del__(self):
-        """Деструктор для очистки ресурсов"""
+        # Деструктор для очистки ресурсов
         self.cleanup()
 
 def main():
