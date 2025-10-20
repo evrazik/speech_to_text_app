@@ -19,7 +19,7 @@ class UISetup:
         buttons['btn_start'].pack(side=tk.LEFT, padx=5)
         buttons['btn_stop'] = tk.Button(frame_top, text="⏹ Остановить запись (F9)", 
                                       command=app.stop_recording, 
-                                      bg="red", fg="white", width=20,
+                                      bg="red", fg="white", width=24,
                                       state=tk.DISABLED,
                                       font=("Arial", 10, "bold"))
         buttons['btn_stop'].pack(side=tk.LEFT, padx=5)
@@ -35,7 +35,7 @@ class UISetup:
         buttons['btn_clear_logs'].pack(side=tk.LEFT, padx=5)
         buttons['btn_model'] = tk.Button(frame_top, text="📂 Выбрать модель", 
                                        command=app.select_model, 
-                                       bg="blue", fg="white", width=15,
+                                       bg="blue", fg="white", width=18,
                                        font=("Arial", 10, "bold"))
         buttons['btn_model'].pack(side=tk.LEFT, padx=5)
         return buttons
