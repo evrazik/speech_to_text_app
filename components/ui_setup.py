@@ -25,7 +25,7 @@ class UISetup:
         buttons['btn_stop'].pack(side=tk.LEFT, padx=5)
         buttons['btn_clear'] = tk.Button(frame_top, text="🗑 Очистить текст", 
                                        command=app.clear_text, 
-                                       bg="#28a4ca", fg="white", width=15,
+                                       bg="#f682f4", fg="white", width=15,
                                        font=("Arial", 10, "bold"), relief=tk.RAISED, bd=2, cursor='hand2')
         buttons['btn_clear'].pack(side=tk.LEFT, padx=5)
         buttons['btn_clear_logs'] = tk.Button(frame_top, text="🗑 Очистить логи", 
