@@ -1,8 +1,10 @@
 import datetime
 class Utils:
-    def get_timestamp(self):
+    @staticmethod
+    def get_timestamp():
         return datetime.datetime.now().strftime("%H:%M:%S")
-    def fix_encoding(self, text):
+    @staticmethod
+    def fix_encoding(text):
         if isinstance(text, bytes):
             for encoding in ['utf-8', 'cp1251', 'cp866', 'latin1']:
                 try:
@@ -22,3 +24,18 @@ class Utils:
                 pass
             return text
         return str(text)
+    @staticmethod
+    def format_time_delta(seconds):
+        if seconds < 60:
+            return f"{seconds:.1f} сек"
+        elif seconds < 3600:
+            minutes = seconds / 60
+            return f"{minutes:.1f} мин"
+        else:
+            hours = seconds / 3600
+            return f"{hours:.1f} ч"
+    @staticmethod
+    def truncate_text(text, max_length=100):
+        if len(text) <= max_length:
+            return text
+        return text[:max_length-3] + "..."
