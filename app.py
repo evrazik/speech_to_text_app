@@ -2,11 +2,12 @@ import tkinter as tk
 from tkinter import scrolledtext, messagebox, filedialog
 import threading
 import queue
-import pyaudio
-import json
-import os
 from concurrent.futures import ThreadPoolExecutor
-import time
+
+from ui_components import UIComponents
+from model_manager import ModelManager
+from audio_processor import AudioProcessor
+from utils import Utils
 
 class SpeechToTextApp:
     def __init__(self, root):
@@ -14,154 +15,26 @@ class SpeechToTextApp:
         self.root.title("Распознавание речи в реальном времени")
         self.root.geometry("850x750")
         self.root.resizable(True, True)
-        
         self.executor = ThreadPoolExecutor(max_workers=4)
-        self.audio_queue = queue.Queue(maxsize=10) 
+        self.audio_queue = queue.Queue(maxsize=10)
         self.ui_queue = queue.Queue()
-        
-        self.model_path = None
-        self.Model = None
-        self.KaldiRecognizer = None
-        self.model = None
-        self.recognizer = None
-        
-        self.last_partial_text = ""
-        self.partial_text_counter = 0
-        self.max_partial_duplicates = 3
-        
-        self.init_vosk()
-        
-        self.format = pyaudio.paInt16
-        self.channels = 1
-        self.rate = 16000
-        self.chunk = 8192
-        
+        self.model_manager = ModelManager()
+        self.audio_processor = AudioProcessor()
+        self.ui_components = UIComponents()
+        self.utils = Utils()
         self.is_recording = False
-        self.audio_stream = None
-        self.pyaudio_instance = None
         self.recording_thread = None
         self.processing_thread = None
-        
         self.stop_recording_flag = threading.Event()
         self.stop_processing_flag = threading.Event()
-        
         self.setup_ui()
         self.setup_bindings()
-        
         self.process_ui_queue()
-        
     def setup_bindings(self):
-        self.root.bind('<F7>', lambda e: self.start_recording())
-        self.root.bind('<F9>', lambda e: self.stop_recording())
-        self.root.bind('<Key>', self.universal_key_handler, add=True)
-    
-    def universal_key_handler(self, event):
-        if event.state & 0x4:
-            keycode = event.keycode
-            c_keycodes = [67, 99, 1089, 1057]
-            a_keycodes = [65, 97, 1092, 1060, 1040, 1072]
-            if keycode in c_keycodes:
-                self.copy_selected_text_universal()
-                return "break"
-            elif keycode in a_keycodes:
-                self.select_all_text_universal()
-                return "break"
-    
-    def copy_selected_text_universal(self):
-        try:
-            focused_widget = self.root.focus_get()
-            if focused_widget and hasattr(focused_widget, 'tag_ranges'):
-                if focused_widget.tag_ranges(tk.SEL):
-                    selected_text = focused_widget.get(tk.SEL_FIRST, tk.SEL_LAST)
-                    self.root.clipboard_clear()
-                    self.root.clipboard_append(selected_text)
-        except Exception as e:
-            print(f"Ошибка копирования: {e}")
-    
-    def select_all_text_universal(self):
-        try:
-            focused_widget = self.root.focus_get()
-            if focused_widget and hasattr(focused_widget, 'tag_add'):
-                focused_widget.tag_add(tk.SEL, "1.0", tk.END)
-                focused_widget.mark_set(tk.INSERT, "1.0")
-                focused_widget.see(tk.INSERT)
-                focused_widget.focus_set()
-        except Exception as e:
-            print(f"Ошибка выделения: {e}")
-    
-    def copy_selected_text(self, event=None):
-        self.copy_selected_text_universal()
-        return "break"
-    
-    def select_all_text(self, event=None):
-        self.select_all_text_universal()
-        return "break"
-    
-    def init_vosk(self):
-        try:
-            from vosk import Model, KaldiRecognizer
-            self.Model = Model
-            self.KaldiRecognizer = KaldiRecognizer
-            print("Vosk библиотека загружена успешно")
-            return True
-        except ImportError as e:
-            print(f"Ошибка импорта Vosk: {e}")
-            self.queue_ui_message("error", "Ошибка", "Библиотека Vosk не установлена!\nУстановите: pip install vosk")
-            return False
-        except Exception as e:
-            print(f"Ошибка загрузки Vosk: {e}")
-            self.queue_ui_message("error", "Ошибка", f"Ошибка загрузки Vosk: {e}")
-            return False
-    
-    def validate_model_path(self, path):
-        if not path or not os.path.exists(path):
-            return False, "Путь не существует"
-        if not os.path.isdir(path):
-            return False, "Указанный путь не является папкой"
-        
-        readme_exists = any(os.path.exists(os.path.join(path, readme)) 
-                           for readme in ['README', 'README.md', 'readme'])
-        
-        required_dirs = ['am', 'conf', 'graph']
-        dirs_exist = all(os.path.exists(os.path.join(path, dir_name)) 
-                        for dir_name in required_dirs)
-        
-        if readme_exists and dirs_exist:
-            return True, "Модель корректна"
-        else:
-            missing = []
-            if not readme_exists:
-                missing.append("README файл")
-            for dir_name in required_dirs:
-                if not os.path.exists(os.path.join(path, dir_name)):
-                    missing.append(f"папка {dir_name}")
-            return False, f"Отсутствуют: {', '.join(missing)}"
-    
-    def fix_encoding(self, text):
-        if isinstance(text, bytes):
-            for encoding in ['utf-8', 'cp1251', 'cp866', 'latin1']:
-                try:
-                    return text.decode(encoding)
-                except:
-                    continue
-            return text.decode('utf-8', errors='ignore')
-        elif isinstance(text, str):
-            try:
-                if 'Р' in text and 'С' in text:
-                    try:
-                        bytes_text = text.encode('latin1')
-                        return bytes_text.decode('cp1251')
-                    except:
-                        pass
-            except:
-                pass
-            return text
-        return str(text)
-    
+        self.ui_components.setup_global_bindings(self.root, self)
     def setup_ui(self):
         frame_top = tk.Frame(self.root)
         frame_top.pack(pady=10)
-        
         self.btn_start = tk.Button(frame_top, text="🔴 Начать запись (F7)", 
                                   command=self.start_recording, 
                                   bg="green", fg="white", width=20,
@@ -192,107 +65,40 @@ class SpeechToTextApp:
                                   bg="blue", fg="white", width=15,
                                   font=("Arial", 10, "bold"))
         self.btn_model.pack(side=tk.LEFT, padx=5)
-        
-        # Кнопка диагностики (пока не нужна, возможно понадобится в дальнейшем)
-        """self.btn_diagnose = tk.Button(frame_top, text="🔍 Диагностика", 
-                                     command=self.run_diagnostics, 
-                                     bg="purple", fg="white", width=15,
-                                     font=("Arial", 10, "bold"))
-        self.btn_diagnose.pack(side=tk.LEFT, padx=5)"""
-        
         text_frame = tk.Frame(self.root)
         text_frame.pack(padx=10, pady=5, fill=tk.BOTH, expand=True)
-        
         tk.Label(text_frame, text="Распознанный текст:", font=("Arial", 9, "bold")).pack(anchor=tk.W)
-        
         self.text_area = scrolledtext.ScrolledText(text_frame, 
                                                   wrap=tk.WORD, 
                                                   width=95, 
                                                   height=20,
                                                   font=("Arial", 11))
         self.text_area.pack(fill=tk.BOTH, expand=True)
-        
-        self.setup_text_context_menu(self.text_area)
-        
+        self.ui_components.setup_text_widget_bindings(self.text_area, self)
         log_frame = tk.Frame(self.root)
         log_frame.pack(padx=10, pady=5, fill=tk.BOTH, expand=True)
-        
         tk.Label(log_frame, text="Логи:", font=("Arial", 9, "bold")).pack(anchor=tk.W)
-        
         self.log_area = scrolledtext.ScrolledText(log_frame, 
                                                  wrap=tk.WORD, 
                                                  width=95, 
                                                  height=8,
                                                  font=("Courier", 9))
         self.log_area.pack(fill=tk.BOTH, expand=True)
-        
-        self.setup_text_context_menu(self.log_area)
-        
+        self.ui_components.setup_text_widget_bindings(self.log_area, self)
         self.status_label = tk.Label(self.root, text="Готов к работе", 
                                     relief=tk.SUNKEN, anchor=tk.W,
                                     font=("Arial", 9))
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
-        
         info_frame = tk.Frame(self.root)
         info_frame.pack(pady=5)
         
         self.model_info_label = tk.Label(info_frame, text="Модель: Не выбрана", 
                                         font=("Arial", 8), fg="gray")
         self.model_info_label.pack()
-        
         hint_frame = tk.Frame(self.root)
         hint_frame.pack(pady=3)
-        
         tk.Label(hint_frame, text="Подсказки: F7 - Начать запись | F9 - Остановить запись | Ctrl+C - Копировать | Ctrl+A - Выделить всё", 
                 font=("Arial", 8), fg="blue").pack()
-    
-    def setup_text_context_menu(self, text_widget):
-        context_menu = tk.Menu(text_widget, tearoff=0)
-        context_menu.add_command(label="Копировать", command=lambda: self.copy_text_from_widget(text_widget))
-        context_menu.add_command(label="Выделить всё", command=lambda: self.select_all_from_widget(text_widget))
-        context_menu.add_separator()
-        context_menu.add_command(label="Очистить", command=lambda: text_widget.delete(1.0, tk.END))
-        
-        def show_context_menu(event):
-            try:
-                context_menu.tk_popup(event.x_root, event.y_root)
-            finally:
-                context_menu.grab_release()
-        
-        text_widget.bind("<Button-3>", show_context_menu)
-        text_widget.bind("<Control-c>", lambda e: [self.copy_text_from_widget(text_widget), "break"][1])
-        text_widget.bind("<Control-C>", lambda e: [self.copy_text_from_widget(text_widget), "break"][1])
-        text_widget.bind("<Control-a>", lambda e: [self.select_all_from_widget(text_widget), "break"][1])
-        text_widget.bind("<Control-A>", lambda e: [self.select_all_from_widget(text_widget), "break"][1])
-    
-        def key_press_handler(event):
-            if event.state & 0x4:  
-                if event.keysym.lower() in ['c', 'с']:
-                    self.copy_text_from_widget(text_widget)
-                    return "break"
-                elif event.keysym.lower() in ['a', 'ф']:
-                    self.select_all_from_widget(text_widget)
-                    return "break"
-        
-        text_widget.bind("<KeyPress>", key_press_handler)
-
-    def copy_text_from_widget(self, widget):
-        try:
-            selected_text = widget.selection_get()
-            self.root.clipboard_clear()
-            self.root.clipboard_append(selected_text)
-        except tk.TclError:
-            pass
-    
-    def select_all_from_widget(self, widget):
-        widget.tag_add(tk.SEL, "1.0", tk.END)
-        widget.mark_set(tk.INSERT, "1.0")
-        widget.see(tk.INSERT)
-        widget.focus_set()
-    
-    def queue_ui_message(self, msg_type, title="", message="", **kwargs):
-        self.ui_queue.put((msg_type, title, message, kwargs))
-    
     def process_ui_queue(self):
         try:
             while True:
@@ -302,7 +108,6 @@ class SpeechToTextApp:
             pass
         finally:
             self.root.after(100, self.process_ui_queue)
-    
     def handle_ui_message(self, msg_type, title, message, **kwargs):
         if msg_type == "log":
             self.log_message(message)
@@ -319,7 +124,6 @@ class SpeechToTextApp:
         elif msg_type == "enable_buttons":
             self.btn_start.config(state=kwargs.get('start', tk.NORMAL))
             self.btn_stop.config(state=kwargs.get('stop', tk.NORMAL))
-    
     def log_message(self, message):
         import datetime
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
@@ -329,125 +133,76 @@ class SpeechToTextApp:
         self.log_area.update_idletasks()
         print(log_entry.strip())
     
-    # Отключаем диагностику в рамках stta-001
-    """def run_diagnostics(self):
-        # Запуск диагностики системы с правильной кодировкой
-        def diagnostics_worker():
-            self.queue_ui_message("log", "", "=== Запуск диагностики ===")
-            
-            try:
-                p = pyaudio.PyAudio()
-                info = p.get_host_api_info_by_index(0)
-                numdevices = info.get('deviceCount')
-                
-                self.queue_ui_message("log", "", f"Найдено аудиоустройств: {numdevices}")
-                
-                for i in range(0, numdevices):
-                    try:
-                        device_info = p.get_device_info_by_host_api_device_index(0, i)
-                        if device_info.get('maxInputChannels') > 0:
-                            device_name = device_info.get('name', 'Неизвестное устройство')
-                            device_name = self.fix_encoding(device_name)
-                            self.queue_ui_message("log", "", f"Входное устройство {i}: {device_name}")
-                    except Exception as e:
-                        self.queue_ui_message("log", "", f"Ошибка получения информации об устройстве {i}: {e}")
-                
-                p.terminate()
-                self.queue_ui_message("log", "", "✅ Диагностика аудио завершена")
-                
-            except Exception as e:
-                self.queue_ui_message("log", "", f"❌ Ошибка диагностики: {e}")
-        
-        # Запускаем в пуле потоков
-        self.executor.submit(diagnostics_worker)"""
-    
     def select_model(self):
-        if not self.Model or not self.KaldiRecognizer:
+        if not self.model_manager.is_vosk_available():
             self.queue_ui_message("error", "Ошибка", "Библиотека Vosk не загружена!\nУстановите: pip install vosk")
             return
-            
         path = filedialog.askdirectory(title="Выберите папку с моделью Vosk")
         if path:
             self.queue_ui_message("log", "", f"Выбран путь к модели: {path}")
-            is_valid, message = self.validate_model_path(path)
-            
+            is_valid, message = self.model_manager.validate_model_path(path)
             if is_valid:
-                self.model_path = path
-                
+                self.model_manager.model_path = path
                 self.root.after(0, self._show_loading_and_load_model)
             else:
                 error_msg = f"Некорректная модель: {message}"
                 self.queue_ui_message("log", "", f"❌ {error_msg}")
                 self.queue_ui_message("error", "Ошибка", error_msg)
                 self.queue_ui_message("status", "", "❌ Некорректная модель", fg="red")
-    
     def _show_loading_and_load_model(self):
         loading_window = tk.Toplevel(self.root)
         loading_window.title("Загрузка модели")
         loading_window.geometry("400x150")
         loading_window.resizable(False, False)
         loading_window.transient(self.root)
-        
         loading_window.geometry("+%d+%d" % (
             self.root.winfo_rootx() + 50,
             self.root.winfo_rooty() + 50))
-        
         label = tk.Label(loading_window, text="Загрузка модели...\nЭто может занять несколько секунд", 
                        font=("Arial", 11), wraplength=350)
         label.pack(pady=20)
-        
         import tkinter.ttk as ttk
         progress = ttk.Progressbar(loading_window, mode='indeterminate')
         progress.pack(pady=10, padx=20, fill=tk.X)
         progress.start(10)
         
         loading_window.update()
-        
         self.executor.submit(self._load_model_worker, loading_window)
-    
     def _load_model_worker(self, loading_window):
         try:
             self.queue_ui_message("log", "", "Начало загрузки модели...")
-            self.model = self.Model(self.model_path)
-            
-            if self.model is None:
+            success = self.model_manager.load_model()
+            if not success:
                 raise Exception("Модель не создана")
-            
             self.root.after(0, lambda: self._on_model_loaded(loading_window))
-            
         except Exception as e:
             error_msg = str(e)
             self.root.after(0, lambda: self._on_model_load_error(loading_window, error_msg))
-    
     def _on_model_loaded(self, loading_window):
         try:
             loading_window.destroy()
             self.queue_ui_message("status", "", "✅ Модель загружена", fg="green")
-            self.queue_ui_message("model_info", "", f"Модель: {os.path.basename(self.model_path)}")
+            self.queue_ui_message("model_info", "", f"Модель: {self.model_manager.get_model_name()}")
             self.queue_ui_message("log", "", "✅ Модель успешно загружена")
-            self.queue_ui_message("info", "Успех", f"Модель загружена!\nПуть: {self.model_path}")
+            self.queue_ui_message("info", "Успех", f"Модель загружена!\nПуть: {self.model_manager.model_path}")
         except Exception as e:
             self.queue_ui_message("log", "", f"❌ Ошибка при завершении загрузки: {e}")
-    
     def _on_model_load_error(self, loading_window, error_msg):
         try:
             loading_window.destroy()
             self.queue_ui_message("log", "", f"❌ Ошибка загрузки модели: {error_msg}")
             self.queue_ui_message("error", "Ошибка", f"Ошибка загрузки модели:\n{error_msg}")
             self.queue_ui_message("status", "", "❌ Ошибка загрузки модели", fg="red")
-            self.model = None
+            self.model_manager.model = None
         except Exception as e:
             self.queue_ui_message("log", "", f"❌ Ошибка обработки ошибки: {e}")
-    
     def start_recording(self):
-        if not self.model:
+        if not self.model_manager.is_model_loaded():
             self.queue_ui_message("error", "Ошибка", "Модель не загружена!\nСначала выберите модель")
             return
-            
         if not self.is_recording:
             self.is_recording = True
-            self.last_partial_text = ""
-            self.partial_text_counter = 0
+            self.audio_processor.reset_partial_text_state()
             self.stop_recording_flag.clear()
             self.stop_processing_flag.clear()
             
@@ -460,7 +215,6 @@ class SpeechToTextApp:
             
             self.recording_thread.start()
             self.processing_thread.start()
-    
     def stop_recording(self):
         if self.is_recording:
             self.is_recording = False
@@ -470,133 +224,80 @@ class SpeechToTextApp:
             self.queue_ui_message("status", "", "⏹ Запись остановлена", fg="black")
             self.queue_ui_message("log", "", "=== Запись остановлена ===")
             self.queue_ui_message("enable_buttons", "", "", start=tk.NORMAL, stop=tk.DISABLED)
-    
     def _record_audio_worker(self):
         try:
-            self.pyaudio_instance = pyaudio.PyAudio()
-            self.queue_ui_message("log", "", f"Создание распознавателя с частотой {self.rate}Hz")
-            
-            self.recognizer = self.KaldiRecognizer(self.model, self.rate)
-            if self.recognizer is None:
+            self.queue_ui_message("log", "", f"Создание распознавателя с частотой {self.audio_processor.rate}Hz")
+            success = self.audio_processor.create_recognizer(self.model_manager.model)
+            if not success:
                 raise Exception("Распознаватель не создан")
-            
             self.queue_ui_message("log", "", "Распознаватель создан успешно")
-            
             self.queue_ui_message("log", "", "Открытие аудиопотока...")
-            self.audio_stream = self.pyaudio_instance.open(
-                format=self.format,
-                channels=self.channels,
-                rate=self.rate,
-                input=True,
-                frames_per_buffer=self.chunk
-            )
-            
-            self.audio_stream.start_stream()
+            success = self.audio_processor.open_audio_stream()
+            if not success:
+                raise Exception("Не удалось открыть аудиопоток")
             self.queue_ui_message("log", "", "Аудиопоток запущен")
-            
             while not self.stop_recording_flag.is_set():
                 try:
-                    data = self.audio_stream.read(self.chunk, exception_on_overflow=False)
-                    
-                    if len(data) > 0:
+                    data = self.audio_processor.read_audio_chunk(self.audio_queue.maxsize)
+                    if data and len(data) > 0:
                         try:
                             self.audio_queue.put_nowait(data)
                         except queue.Full:
                             self.queue_ui_message("log", "", "Очередь аудио переполнена, данные пропущены")
-                            
                 except Exception as e:
                     if not self.stop_recording_flag.is_set():
                         self.queue_ui_message("log", "", f"Ошибка чтения аудио: {e}")
                     break
-                    
         except Exception as e:
             self.queue_ui_message("log", "", f"❌ Ошибка записи: {e}")
         finally:
-            if self.audio_stream:
-                self.audio_stream.stop_stream()
-                self.audio_stream.close()
-            if self.pyaudio_instance:
-                self.pyaudio_instance.terminate()
+            self.audio_processor.cleanup()
             self.queue_ui_message("log", "", "Аудиопоток закрыт")
-    
     def _process_audio_worker(self):
         while not self.stop_processing_flag.is_set():
             try:
                 data = self.audio_queue.get(timeout=0.1)
-                
-                if self.recognizer and data:
-                    result_accepted = self.recognizer.AcceptWaveform(data)
-                    
+                if self.audio_processor.recognizer and data:
+                    result_accepted = self.audio_processor.process_audio_chunk(data)
                     if result_accepted:
-                        result = json.loads(self.recognizer.Result())
-                        text = result.get("text", "").strip()
+                        text = self.audio_processor.get_full_result()
                         if text:
                             self.queue_ui_message("log", "", f"РАСПОЗНАНО: '{text}'")
                             self.queue_ui_message("text", "", text)
-                            self.last_partial_text = ""
-                            self.partial_text_counter = 0
+                            self.audio_processor.reset_partial_text_state()
                         else:
                             self.queue_ui_message("log", "", "Получен пустой результат")
                     else:
-                        partial_result = json.loads(self.recognizer.PartialResult())
-                        partial_text = partial_result.get("partial", "").strip()
-                        
+                        partial_text = self.audio_processor.get_partial_result()
                         if partial_text:
-                            if partial_text == self.last_partial_text:
-                                self.partial_text_counter += 1
-                                if self.partial_text_counter <= self.max_partial_duplicates:
-                                    self.queue_ui_message("log", "", f"ЧАСТИЧНО: '{partial_text}' (повтор {self.partial_text_counter})")
-                            else:
-                                self.last_partial_text = partial_text
-                                self.partial_text_counter = 1
-                                self.queue_ui_message("log", "", f"ЧАСТИЧНО: '{partial_text}'")
-                        elif self.last_partial_text:
-                            self.last_partial_text = ""
-                            self.partial_text_counter = 0
-                            
+                            should_log, log_message = self.audio_processor.should_log_partial(partial_text)
+                            if should_log:
+                                self.queue_ui_message("log", "", log_message)
+                        elif self.audio_processor.has_partial_text():
+                            self.audio_processor.clear_partial_state()
             except queue.Empty:
                 continue
             except Exception as e:
                 if not self.stop_processing_flag.is_set():
                     self.queue_ui_message("log", "", f"❌ Ошибка обработки аудио: {e}")
                 break
-    
     def clear_text(self):
         self.text_area.delete(1.0, tk.END)
         self.queue_ui_message("status", "", "Текст очищен")
-    
     def clear_logs(self):
         self.log_area.delete(1.0, tk.END)
         self.queue_ui_message("status", "", "Логи очищены")
-    
     def update_text(self, text):
-        timestamp = self.get_timestamp()
+        timestamp = self.utils.get_timestamp()
         formatted_text = f"[{timestamp}] {text}"
         self.text_area.insert(tk.END, formatted_text + "\n")
         self.text_area.see(tk.END)
         self.queue_ui_message("status", "", f"✅ Распознано: {text[:30]}...", fg="green")
-    
-    def get_timestamp(self):
-        import datetime
-        return datetime.datetime.now().strftime("%H:%M:%S")
-    
+    def queue_ui_message(self, msg_type, title="", message="", **kwargs):
+        self.ui_queue.put((msg_type, title, message, kwargs))
     def cleanup(self):
         self.stop_recording()
         self.executor.shutdown(wait=False)
-    
+        self.audio_processor.cleanup()
     def __del__(self):
         self.cleanup()
-
-def main():
-    root = tk.Tk()
-    
-    def on_closing():
-        app.cleanup()
-        root.destroy()
-    
-    root.protocol("WM_DELETE_WINDOW", on_closing)
-    app = SpeechToTextApp(root)
-    root.mainloop()
-
-if __name__ == "__main__":
-    main()
