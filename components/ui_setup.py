@@ -14,28 +14,28 @@ class UISetup:
         buttons = {}
         buttons['btn_start'] = tk.Button(frame_top, text="🔴 Начать запись (F7)", 
                                        command=app.start_recording, 
-                                       bg="#4CAF50", fg="white", width=20,
+                                       bg="#7CEC80", fg="white", width=20,
                                        font=("Arial", 10, "bold"), relief=tk.RAISED, bd=2, cursor='hand2')
         buttons['btn_start'].pack(side=tk.LEFT, padx=5)
         buttons['btn_stop'] = tk.Button(frame_top, text="⏹ Остановить запись (F9)", 
                                       command=app.stop_recording, 
-                                      bg="#f44336", fg="white", width=24,
+                                      bg="#ec675e", fg="white", width=24,
                                       state=tk.DISABLED,
                                       font=("Arial", 10, "bold"), relief=tk.RAISED, bd=2, cursor='hand2')
         buttons['btn_stop'].pack(side=tk.LEFT, padx=5)
         buttons['btn_clear'] = tk.Button(frame_top, text="🗑 Очистить текст", 
                                        command=app.clear_text, 
-                                       bg="orange", fg="white", width=15,
+                                       bg="#28a4ca", fg="white", width=15,
                                        font=("Arial", 10, "bold"), relief=tk.RAISED, bd=2, cursor='hand2')
         buttons['btn_clear'].pack(side=tk.LEFT, padx=5)
         buttons['btn_clear_logs'] = tk.Button(frame_top, text="🗑 Очистить логи", 
                                             command=app.clear_logs, 
-                                            bg="darkorange", fg="white", width=15,
+                                            bg="#e5e35b", fg="white", width=15,
                                             font=("Arial", 10, "bold"), relief=tk.RAISED, bd=2, cursor='hand2')
         buttons['btn_clear_logs'].pack(side=tk.LEFT, padx=5)
         buttons['btn_model'] = tk.Button(frame_top, text="📂 Выбрать модель", 
                                        command=app.select_model, 
-                                       bg="blue", fg="white", width=18,
+                                       bg="#609eea", fg="white", width=18,
                                        font=("Arial", 10, "bold"), relief=tk.RAISED, bd=2, cursor='hand2')
         buttons['btn_model'].pack(side=tk.LEFT, padx=5)
         return buttons
