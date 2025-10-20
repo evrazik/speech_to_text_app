@@ -14,29 +14,29 @@ class UISetup:
         buttons = {}
         buttons['btn_start'] = tk.Button(frame_top, text="🔴 Начать запись (F7)", 
                                        command=app.start_recording, 
-                                       bg="green", fg="white", width=20,
-                                       font=("Arial", 10, "bold"))
+                                       bg="#4CAF50", fg="white", width=20,
+                                       font=("Arial", 10, "bold"), relief=tk.RAISED, bd=2, cursor='hand2')
         buttons['btn_start'].pack(side=tk.LEFT, padx=5)
         buttons['btn_stop'] = tk.Button(frame_top, text="⏹ Остановить запись (F9)", 
                                       command=app.stop_recording, 
-                                      bg="red", fg="white", width=24,
+                                      bg="#f44336", fg="white", width=24,
                                       state=tk.DISABLED,
-                                      font=("Arial", 10, "bold"))
+                                      font=("Arial", 10, "bold"), relief=tk.RAISED, bd=2, cursor='hand2')
         buttons['btn_stop'].pack(side=tk.LEFT, padx=5)
         buttons['btn_clear'] = tk.Button(frame_top, text="🗑 Очистить текст", 
                                        command=app.clear_text, 
                                        bg="orange", fg="white", width=15,
-                                       font=("Arial", 10, "bold"))
+                                       font=("Arial", 10, "bold"), relief=tk.RAISED, bd=2, cursor='hand2')
         buttons['btn_clear'].pack(side=tk.LEFT, padx=5)
         buttons['btn_clear_logs'] = tk.Button(frame_top, text="🗑 Очистить логи", 
                                             command=app.clear_logs, 
                                             bg="darkorange", fg="white", width=15,
-                                            font=("Arial", 10, "bold"))
+                                            font=("Arial", 10, "bold"), relief=tk.RAISED, bd=2, cursor='hand2')
         buttons['btn_clear_logs'].pack(side=tk.LEFT, padx=5)
         buttons['btn_model'] = tk.Button(frame_top, text="📂 Выбрать модель", 
                                        command=app.select_model, 
                                        bg="blue", fg="white", width=18,
-                                       font=("Arial", 10, "bold"))
+                                       font=("Arial", 10, "bold"), relief=tk.RAISED, bd=2, cursor='hand2')
         buttons['btn_model'].pack(side=tk.LEFT, padx=5)
         return buttons
     def _create_text_area(self, root, app):
@@ -48,7 +48,8 @@ class UISetup:
                                             wrap=tk.WORD, 
                                             width=95, 
                                             height=20,
-                                            font=("Arial", 11))
+                                            font=("Arial", 11),
+                                            state=tk.DISABLED)
         text_area.pack(fill=tk.BOTH, expand=True)
         self._setup_context_menu(text_area, app)
         return {'text_area': text_area}
@@ -61,7 +62,8 @@ class UISetup:
                                            wrap=tk.WORD, 
                                            width=95, 
                                            height=8,
-                                           font=("Courier", 9))
+                                           font=("Arial", 9),
+                                           state=tk.DISABLED)
         log_area.pack(fill=tk.BOTH, expand=True)
         self._setup_context_menu(log_area, app)
         return {'log_area': log_area}
@@ -92,6 +94,7 @@ class UISetup:
                 elif event.keysym.lower() in ['a', 'ф']:
                     app.select_all_from_widget(text_widget)
                     return "break"
+            return "break"
         text_widget.bind("<KeyPress>", key_press_handler)
     def _create_status_bar(self, root, app):
         status_label = tk.Label(root, text="Готов к работе", 

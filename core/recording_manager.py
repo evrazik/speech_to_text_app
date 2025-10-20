@@ -1,5 +1,6 @@
 import json
 import queue
+from datetime import time
 class RecordingManager:
     def __init__(self, audio_manager, model_manager):
         self.audio_manager = audio_manager
@@ -29,7 +30,8 @@ class RecordingManager:
                         try:
                             audio_queue.put_nowait(data)
                         except queue.Full:
-                            message_queue_func("log", "", "Очередь аудио переполнена, данные пропущены")
+                            time.sleep(0.01)
+                            continue
                 except Exception as e:
                     if not stop_flag.is_set():
                         message_queue_func("log", "", f"Ошибка чтения аудио: {e}")

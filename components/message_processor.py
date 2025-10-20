@@ -36,15 +36,19 @@ class MessageProcessor:
         log_area = self.app.ui_elements['log_area']
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         log_entry = f"[{timestamp}] {message}\n"
+        log_area.config(state=tk.NORMAL)
         log_area.insert(tk.END, log_entry)
+        log_area.config(state=tk.DISABLED)
         log_area.see(tk.END)
         log_area.update_idletasks()
         print(log_entry.strip())
     def update_text_display(self, text):
         text_area = self.app.ui_elements['text_area']
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-        formatted_text = f"[{timestamp}] {text}"
-        text_area.insert(tk.END, formatted_text + "\n")
+        formatted_text = f"[{timestamp}] {text}\n"
+        text_area.config(state=tk.NORMAL)
+        text_area.insert(tk.END, formatted_text)
+        text_area.config(state=tk.DISABLED)
         text_area.see(tk.END)
         self.app.queue_ui_message("status", "", f"✅ Распознано: {text[:30]}...", fg="green")
     def queue_message(self, msg_type, title="", message="", **kwargs):
