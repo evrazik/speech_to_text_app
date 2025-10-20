@@ -78,13 +78,25 @@ class SpeechToTextApp:
             print(f"Ошибка выделения: {e}")
     def copy_text_from_widget(self, widget):
         try:
-            selected_text = widget.selection_get()
-            self.root.clipboard_clear()
-            self.root.clipboard_append(selected_text)
+            if widget.tag_ranges(tk.SEL):
+                selected_text = widget.selection_get()
+                self.root.clipboard_clear()
+                self.root.clipboard_append(selected_text)
+            else:
+                widget.config(state=tk.NORMAL)
+                all_text = widget.get(1.0, tk.END)
+                widget.config(state=tk.DISABLED)
+                self.root.clipboard_clear()
+                self.root.clipboard_append(all_text.strip())
         except tk.TclError:
             pass
     def select_all_from_widget(self, widget):
-        widget.tag_add(tk.SEL, "1.0", tk.END)
-        widget.mark_set(tk.INSERT, "1.0")
-        widget.see(tk.INSERT)
-        widget.focus_set()
+        try:
+            widget.config(state=tk.NORMAL)
+            widget.tag_add(tk.SEL, "1.0", tk.END)
+            widget.mark_set(tk.INSERT, "1.0")
+            widget.see(tk.INSERT)
+            widget.focus_set()
+            widget.config(state=tk.DISABLED)
+        except tk.TclError:
+            pass

@@ -116,11 +116,19 @@ class EventHandlers:
             self.app.queue_ui_message("enable_buttons", "", "", 
                                     start=tk.NORMAL, stop=tk.DISABLED)
     def handle_clear_text(self):
-        self.app.ui_elements['text_area'].delete(1.0, tk.END)
-        self.app.queue_ui_message("status", "", "Текст очищен")
+            text_area = self.app.ui_elements['text_area']
+            text_area.config(state=tk.NORMAL)
+            text_area.delete(1.0, tk.END)
+            text_area.config(state=tk.DISABLED)
+            self.app.queue_ui_message("status", "", "Текст очищен")
+
     def handle_clear_logs(self):
-        self.app.ui_elements['log_area'].delete(1.0, tk.END)
+        log_area = self.app.ui_elements['log_area']
+        log_area.config(state=tk.NORMAL)
+        log_area.delete(1.0, tk.END)
+        log_area.config(state=tk.DISABLED)
         self.app.queue_ui_message("status", "", "Логи очищены")
+
     def _record_audio_worker(self):
         return self.app.recording_manager.record_audio(
             self.app.audio_queue,
